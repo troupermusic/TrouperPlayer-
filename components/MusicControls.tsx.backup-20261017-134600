@@ -1,0 +1,335 @@
+
+import React from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
+
+const COLORS = {
+  background: '#000000',
+  panel: '#0A0A0A',
+  blue: '#1683FF',
+  white: '#FFFFFF',
+  muted: '#BDBDBD',
+  track: '#17243A',
+};
+
+type MusicControlsProps = {
+  songTitle: string;
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+  onPlayPause: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
+  shuffle: boolean;
+  repeatMode: 'off' | 'all' | 'one';
+  onToggleShuffle: () => void;
+  onCycleRepeat: () => void;
+  onSeek: (seconds: number) => void;
+  onOpenLyrics: () => void;
+  onOpenEqualiser: () => void;
+  accent: string;
+  artworkUri: string;
+};
+
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return '0:00';
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+
+  return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+
+export default function MusicControls({
+  songTitle,
+  isPlaying,
+  currentTime,
+  duration,
+  onPlayPause,
+  onPrevious,
+  onNext,
+  shuffle,
+  repeatMode,
+  onToggleShuffle,
+  onCycleRepeat,
+  onSeek,
+  onOpenLyrics,
+  onOpenEqualiser,
+  accent,
+  artworkUri,
+}: MusicControlsProps) {
+  const progress =
+    duration > 0
+      ? Math.max(0, Math.min(1, currentTime / duration))
+      : 0;
+
+  return (
+    <LinearGradient
+      colors={[
+        'rgba(22, 131, 255, 0.34)',
+        'rgba(6, 19, 41, 0.72)',
+        'rgba(255, 212, 0, 0.20)',
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
+    >
+      <View style={styles.songInfo}>
+        <View style={styles.artwork}>
+          {artworkUri ? <Image source={{ uri: artworkUri }} style={{ width: 54, height: 54, borderRadius: 14 }} resizeMode="cover" /> : <Text style={styles.artworkIcon}>♫</Text>}
+        </View>
+
+        <View style={styles.songDetails}>
+          <Text numberOfLines={1} style={styles.songTitle}>
+            {songTitle || 'Nothing playing'}
+          </Text>
+
+          <Text style={styles.subtitle}>
+            {isPlaying ? 'NOW PLAYING' : 'TROUPER PLAYER'}
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.statusDot,
+            { opacity: isPlaying ? 1 : 0.35 },
+          ]}
+        />
+      </View>
+
+      <View style={styles.progressSection}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+          <TouchableOpacity onPress={() => onSeek(-10)}><Text style={{ color: accent, fontSize: 11, fontWeight: '800' }}>↶ 10s</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => onSeek(10)}><Text style={{ color: accent, fontSize: 11, fontWeight: '800' }}>10s ↷</Text></TouchableOpacity>
+        </View>
+        <View style={styles.progressTrack}>
+          <View
+            style={[
+              styles.progressFill,
+              { width: `${progress * 100}%` },
+            ]}
+          />
+        </View>
+
+        <View style={styles.timeRow}>
+          <Text style={styles.timeText}>
+            {formatTime(currentTime)}
+          </Text>
+          <Text style={styles.timeText}>
+            {formatTime(duration)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 18, marginHorizontal: 10 }}>
+        <TouchableOpacity onPress={onToggleShuffle}><Text style={{ color: shuffle ? accent : COLORS.muted, fontWeight: '900', fontSize: 12 }}>⤨ Shuffle</Text></TouchableOpacity>
+        <TouchableOpacity onPress={onCycleRepeat}><Text style={{ color: repeatMode !== 'off' ? accent : COLORS.muted, fontWeight: '900', fontSize: 12 }}>↻ Repeat {repeatMode === 'one' ? '1' : repeatMode === 'all' ? 'All' : 'Off'}</Text></TouchableOpacity>
+      </View>
+
+      <View style={{
+        flexDirection: 'row',
+        gap: 10,
+        marginTop: 18,
+        marginBottom: 2,
+      }}>
+        <TouchableOpacity
+          onPress={onOpenLyrics}
+          activeOpacity={0.8}
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            backgroundColor: 'rgba(22, 131, 255, 0.12)',
+            borderColor: accent,
+            borderWidth: 1,
+            borderRadius: 13,
+            paddingVertical: 13,
+          }}
+        >
+          <Text style={{ color: accent, fontSize: 19, fontWeight: '900' }}>♫</Text>
+          <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>Lyrics</Text>
+          <Text style={{ color: accent, fontWeight: '900' }}>›</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={onOpenEqualiser} accessibilityRole="button" style={{
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          backgroundColor: 'rgba(22, 131, 255, 0.12)',
+          borderColor: '#FFD400',
+          borderWidth: 1,
+          borderRadius: 13,
+          paddingVertical: 13,
+        }}>
+          <Text style={{ color: '#1683FF', fontSize: 18 }}>☷</Text>
+          <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>Equaliser</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.controls}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Previous track"
+          onPress={onPrevious}
+          style={styles.sideButton}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.sideButtonText}>|◀</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={isPlaying ? 'Pause music' : 'Play music'}
+          onPress={onPlayPause}
+          style={[styles.playButton, { backgroundColor: accent }]}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.playButtonText}>
+            {isPlaying ? 'Ⅱ' : '▶'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Next track"
+          onPress={onNext}
+          style={styles.sideButton}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.sideButtonText}>▶|</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.footer}>
+        TROUPER PLAYER • YOUR MUSIC, YOUR WORLD
+      </Text>
+    </LinearGradient>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: 'rgba(6, 19, 41, 0.42)',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 212, 0, 0.65)',
+    padding: 18,
+    marginVertical: 12,
+  },
+  songInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  artwork: {
+    width: 54,
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: 'rgba(6, 19, 41, 0.42)',
+    borderWidth: 1,
+    borderColor: COLORS.blue,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  artworkIcon: {
+    color: COLORS.blue,
+    fontSize: 29,
+    fontWeight: '700',
+  },
+  songDetails: {
+    flex: 1,
+  },
+  songTitle: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  subtitle: {
+    color: COLORS.muted,
+    fontSize: 10,
+    letterSpacing: 1.3,
+    marginTop: 5,
+  },
+  statusDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: '#FFD400',
+  },
+  progressSection: {
+    marginTop: 22,
+  },
+  progressTrack: {
+    height: 5,
+    borderRadius: 5,
+    backgroundColor: COLORS.track,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 5,
+    backgroundColor: COLORS.blue,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  timeText: {
+    color: COLORS.muted,
+    fontSize: 11,
+    fontVariant: ['tabular-nums'],
+  },
+  controls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 32,
+    marginTop: 18,
+  },
+  sideButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sideButtonText: {
+    color: COLORS.white,
+    fontSize: 23,
+    fontWeight: '700',
+  },
+  playButton: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: COLORS.blue,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playButtonText: {
+    color: COLORS.background,
+    fontSize: 25,
+    fontWeight: '900',
+  },
+  footer: {
+    color: COLORS.muted,
+    fontSize: 9,
+    textAlign: 'center',
+    letterSpacing: 1,
+    marginTop: 18,
+  },
+});
+
+

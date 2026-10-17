@@ -1,0 +1,393 @@
+import React from 'react';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const BLUE = '#1683FF';
+const YELLOW = '#FFD400';
+const WHITE = '#F5F8FF';
+const MUTED = '#9AAAC5';
+
+type MusicControlsProps = {
+  songTitle: string;
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+  onPlayPause: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
+  shuffle: boolean;
+  repeatMode: 'off' | 'all' | 'one';
+  onToggleShuffle: () => void;
+  onCycleRepeat: () => void;
+  onSeek: (seconds: number) => void;
+  onOpenLyrics: () => void;
+  onOpenEqualiser: () => void;
+  accent: string;
+  artworkUri: string;
+};
+
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const minutes = Math.floor(seconds / 60);
+  const remaining = Math.floor(seconds % 60);
+  return `${minutes}:${String(remaining).padStart(2, '0')}`;
+}
+
+export default function MusicControls({
+  songTitle,
+  isPlaying,
+  currentTime,
+  duration,
+  onPlayPause,
+  onPrevious,
+  onNext,
+  shuffle,
+  repeatMode,
+  onToggleShuffle,
+  onCycleRepeat,
+  onSeek,
+  onOpenLyrics,
+  onOpenEqualiser,
+  artworkUri,
+}: MusicControlsProps) {
+  const progress = duration > 0
+    ? Math.max(0, Math.min(1, currentTime / duration))
+    : 0;
+
+  return (
+    <LinearGradient
+      colors={['rgba(22,131,255,0.95)', 'rgba(255,212,0,0.85)']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.gradientBorder}
+    >
+      <View style={styles.glassCard}>
+        <View style={styles.topGlow} />
+
+        <View style={styles.songInfo}>
+          <LinearGradient
+            colors={['rgba(22,131,255,0.75)', 'rgba(255,212,0,0.35)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.artworkFrame}
+          >
+            {artworkUri ? (
+              <Image
+                source={{ uri: artworkUri }}
+                style={styles.artworkImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={styles.artworkIcon}>♫</Text>
+            )}
+          </LinearGradient>
+
+          <View style={styles.songDetails}>
+            <Text numberOfLines={1} style={styles.songTitle}>
+              {songTitle || 'Nothing playing'}
+            </Text>
+            <Text style={styles.subtitle}>
+              {isPlaying ? 'NOW PLAYING' : 'TROUPER PLAYER'}
+            </Text>
+          </View>
+
+          <View style={[styles.statusDot, { backgroundColor: isPlaying ? YELLOW : BLUE }]} />
+        </View>
+
+        <View style={styles.progressSection}>
+          <View style={styles.seekRow}>
+            <TouchableOpacity onPress={() => onSeek(-10)} hitSlop={10}>
+              <Text style={styles.seekText}>↶ 10s</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onSeek(10)} hitSlop={10}>
+              <Text style={styles.seekText}>10s ↷</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.progressTrack}>
+            <LinearGradient
+              colors={[BLUE, '#7FCBFF', YELLOW]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.progressFill, { width: `${progress * 100}%` }]}
+            />
+          </View>
+
+          <View style={styles.timeRow}>
+            <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+            <Text style={styles.timeText}>{formatTime(duration)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.optionsRow}>
+          <TouchableOpacity onPress={onToggleShuffle} hitSlop={8}>
+            <Text style={[styles.optionText, shuffle && styles.activeOption]}>
+              ⤨ Shuffle
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onCycleRepeat} hitSlop={8}>
+            <Text style={[styles.optionText, repeatMode !== 'off' && styles.activeOption]}>
+              ↻ Repeat {repeatMode === 'one' ? '1' : repeatMode === 'all' ? 'All' : 'Off'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.utilityRow}>
+          <TouchableOpacity onPress={onOpenLyrics} activeOpacity={0.8} style={styles.utilityButton}>
+            <Text style={styles.utilityIcon}>♫</Text>
+            <Text style={styles.utilityLabel}>Lyrics</Text>
+            <Text style={styles.utilityIcon}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={onOpenEqualiser} activeOpacity={0.8} style={styles.utilityButton}>
+            <Text style={styles.utilityIcon}>☷</Text>
+            <Text style={styles.utilityLabel}>Equaliser</Text>
+            <Text style={styles.utilityIcon}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.controls}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Previous track"
+            onPress={onPrevious}
+            activeOpacity={0.75}
+            style={styles.roundButton}
+          >
+            <Text style={styles.sideButtonText}>|◀</Text>
+          </TouchableOpacity>
+
+          <LinearGradient
+            colors={[BLUE, '#4D9CFF', YELLOW]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.playGradient}
+          >
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={isPlaying ? 'Pause music' : 'Play music'}
+              onPress={onPlayPause}
+              activeOpacity={0.8}
+              style={styles.playButton}
+            >
+              <Text style={styles.playButtonText}>{isPlaying ? 'Ⅱ' : '▶'}</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Next track"
+            onPress={onNext}
+            activeOpacity={0.75}
+            style={styles.roundButton}
+          >
+            <Text style={styles.sideButtonText}>▶|</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.footer}>TROUPER PLAYER  •  YOUR MUSIC, YOUR WORLD</Text>
+      </View>
+    </LinearGradient>
+  );
+}
+
+const styles = StyleSheet.create({
+  gradientBorder: {
+    borderRadius: 30,
+    padding: 1.5,
+    marginVertical: 14,
+    shadowColor: BLUE,
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
+  },
+  glassCard: {
+    overflow: 'hidden',
+    borderRadius: 28,
+    padding: 18,
+    backgroundColor: 'rgba(3, 8, 23, 0.91)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+  },
+  topGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 30,
+    right: 30,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  songInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  artworkFrame: {
+    width: 58,
+    height: 58,
+    borderRadius: 17,
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  artworkImage: {
+    width: 54,
+    height: 54,
+    borderRadius: 15,
+  },
+  artworkIcon: {
+    color: WHITE,
+    fontSize: 29,
+    fontWeight: '700',
+  },
+  songDetails: {
+    flex: 1,
+  },
+  songTitle: {
+    color: WHITE,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  subtitle: {
+    color: '#A9BEDF',
+    fontSize: 10,
+    letterSpacing: 1.5,
+    marginTop: 5,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 5,
+  },
+  progressSection: {
+    marginTop: 23,
+  },
+  seekRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 11,
+  },
+  seekText: {
+    color: YELLOW,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  progressTrack: {
+    height: 7,
+    borderRadius: 8,
+    backgroundColor: 'rgba(160,180,220,0.19)',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 7,
+    borderRadius: 8,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  timeText: {
+    color: '#A9BEDF',
+    fontSize: 11,
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    marginHorizontal: 3,
+  },
+  optionText: {
+    color: MUTED,
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  activeOption: {
+    color: YELLOW,
+  },
+  utilityRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 20,
+  },
+  utilityButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: 'rgba(22,131,255,0.10)',
+    borderColor: 'rgba(22,131,255,0.55)',
+    borderWidth: 1,
+    borderRadius: 15,
+    paddingVertical: 13,
+  },
+  utilityIcon: {
+    color: YELLOW,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  utilityLabel: {
+    color: WHITE,
+    fontWeight: '800',
+  },
+  controls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 25,
+    marginTop: 24,
+  },
+  roundButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(22,131,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(125,170,255,0.35)',
+  },
+  sideButtonText: {
+    color: WHITE,
+    fontSize: 19,
+    fontWeight: '900',
+  },
+  playGradient: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    padding: 2,
+    shadowColor: YELLOW,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  playButton: {
+    flex: 1,
+    borderRadius: 33,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(3,8,23,0.45)',
+  },
+  playButtonText: {
+    color: WHITE,
+    fontSize: 26,
+    fontWeight: '900',
+  },
+  footer: {
+    color: '#8198BC',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    textAlign: 'center',
+    marginTop: 23,
+  },
+});
