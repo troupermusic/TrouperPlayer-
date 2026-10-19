@@ -32,6 +32,9 @@ jobs:
         with:
           packages: 'platform-tools,platforms;android-36,build-tools;36.0.0'
 
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses
+
       - name: Install dependencies
         run: npm ci
 
