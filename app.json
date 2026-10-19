@@ -49,8 +49,7 @@
           ]
         }
       ],
-      "expo-video",
-      "@react-native-google-signin/google-signin"
+      "expo-video"
     ],
     "extra": {
       "eas": {
