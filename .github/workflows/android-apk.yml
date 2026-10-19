@@ -3,14 +3,16 @@ name: Build Trouper Player APK
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out source
+      - name: Checkout project
         uses: actions/checkout@v4
 
       - name: Set up Node.js
@@ -23,7 +25,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '17'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -31,12 +33,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Set Android build version
+        run: |
+          node -e "const fs=require('fs');const p=require('./app.json');p.expo.android=p.expo.android||{};p.expo.android.versionCode=Math.max(3,Number(p.expo.android.versionCode||1)+1);fs.writeFileSync('app.json',JSON.stringify(p,null,2)+'\n')"
+
       - name: Generate Android project
         run: npx expo prebuild --platform android --non-interactive
 
-      - name: Build release APK
-        working-directory: android
-        run: ./gradlew assembleRelease
+      - name: Build APK
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -44,4 +52,3 @@ jobs:
           name: Trouper-Player-APK
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
-          retention-days: 14
