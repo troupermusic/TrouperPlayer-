@@ -1,4 +1,6 @@
 name: Build Trouper Player APK
+env:
+  EAS_SKIP_AUTO_FINGERPRINT: '1'
 
 on:
   workflow_dispatch:
