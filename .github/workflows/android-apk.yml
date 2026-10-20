@@ -1,6 +1,7 @@
 name: Build Trouper Player APK
+
 env:
-  EAS_SKIP_AUTO_FINGERPRINT: '1'
+  EAS_SKIP_AUTO_FINGERPRINT: "1"
 
 on:
   workflow_dispatch:
@@ -40,16 +41,59 @@ jobs:
         run: npm ci
 
       - name: Set Android build version
-        working-directory: .
         run: |
-          pwd
           test -f app.json
           node -e "const fs=require('fs');const p=require('./app.json');p.expo.android=p.expo.android||{};p.expo.android.versionCode=Math.max(3,Number(p.expo.android.versionCode||1)+1);fs.writeFileSync('app.json',JSON.stringify(p,null,2)+'\n')"
 
       - name: Generate Android project
         run: CI=1 npx expo prebuild --platform android
 
+      - name: Configure release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -eu
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path("android/app/build.gradle")
+          s = p.read_text()
+          marker = "    }\n    buildTypes {\n"
+          if marker not in s:
+              raise SystemExit("Could not find signingConfigs/buildTypes boundary; stopping safely.")
+          release_config = '''        release {
+              storeFile file("release.keystore")
+              storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+              keyAlias System.getenv("ANDROID_KEY_ALIAS")
+              keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+          }
+          }
+          buildTypes {
+          '''
+          s = s.replace(marker, release_config, 1)
+          pattern = r'(release\s*\{.*?signingConfig\s+)signingConfigs\.debug'
+          s, count = re.subn(pattern, r'\1signingConfigs.release', s, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit("Could not switch release signing configuration; stopping safely.")
+          p.write_text(s)
+          PY
+          keytool -list -keystore android/app/release.keystore \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
+
       - name: Build APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           chmod +x android/gradlew
           cd android
