@@ -1,19 +1,20 @@
-name: Build Trouper Player APK
 
-env:
-  EAS_SKIP_AUTO_FINGERPRINT: "1"
+name: Build Trouper Player APK
 
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: read
 
 jobs:
   build:
+    name: Build signed Android APK
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -31,45 +32,73 @@ jobs:
           java-version: '17'
 
       - name: Prepare Android SDK
+        shell: bash
         run: |
+          set -euo pipefail
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses
-          "$SDKMANAGER" --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+          "$SDKMANAGER" --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0"
 
       - name: Install dependencies
         run: npm ci
 
       - name: Set Android build version
+        shell: bash
         run: |
+          set -euo pipefail
           test -f app.json
-          node -e "const fs=require('fs');const p=require('./app.json');p.expo.android=p.expo.android||{};p.expo.android.versionCode=Math.max(3,Number(p.expo.android.versionCode||1)+1);fs.writeFileSync('app.json',JSON.stringify(p,null,2)+'\n')"
+          node <<'NODE'
+          const fs = require('fs');
+          const p = require('./app.json');
+          p.expo.android = p.expo.android || {};
+          p.expo.android.versionCode =
+            Math.max(3, Number(p.expo.android.versionCode || 1) + 1);
+          fs.writeFileSync('app.json', JSON.stringify(p, null, 2) + '\n');
+          NODE
 
       - name: Generate Android project
         run: CI=1 npx expo prebuild --platform android
 
       - name: Configure release signing
+        shell: bash
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          set -eu
+          set -euo pipefail
+
           test -n "$ANDROID_KEYSTORE_BASE64"
           test -n "$ANDROID_KEYSTORE_PASSWORD"
           test -n "$ANDROID_KEY_PASSWORD"
           test -n "$ANDROID_KEY_ALIAS"
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
-          python3 - <<'PY'
+
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" \
+            | base64 --decode > android/app/release.keystore
+
+          keytool -list -keystore android/app/release.keystore \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" >/dev/null
+
+          python3 <<'PY'
           from pathlib import Path
           import re
 
           p = Path("android/app/build.gradle")
           s = p.read_text()
+
           marker = "    }\n    buildTypes {\n"
           if marker not in s:
-              raise SystemExit("Could not find signingConfigs/buildTypes boundary; stopping safely.")
+              raise SystemExit(
+                  "Could not find signingConfigs/buildTypes boundary; "
+                  "stopping safely."
+              )
+
           release_config = '''        release {
               storeFile file("release.keystore")
               storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
@@ -79,25 +108,62 @@ jobs:
           }
           buildTypes {
           '''
+
           s = s.replace(marker, release_config, 1)
+
           pattern = r'(release\s*\{.*?signingConfig\s+)signingConfigs\.debug'
-          s, count = re.subn(pattern, r'\1signingConfigs.release', s, count=1, flags=re.S)
+          s, count = re.subn(
+              pattern,
+              r'\1signingConfigs.release',
+              s,
+              count=1,
+              flags=re.S
+          )
+
           if count != 1:
-              raise SystemExit("Could not switch release signing configuration; stopping safely.")
+              raise SystemExit(
+                  "Could not switch release signing configuration safely."
+              )
+
           p.write_text(s)
           PY
-          keytool -list -keystore android/app/release.keystore \
-            -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
+
+      - name: Print release signing SHA-1
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+
+          keytool -list -v \
+            -keystore android/app/release.keystore \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" \
+            | grep -E 'Alias name:|SHA1:|SHA-1:'
 
       - name: Build APK
+        shell: bash
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
+          set -euo pipefail
           chmod +x android/gradlew
           cd android
           ./gradlew assembleRelease
+
+      - name: Verify APK signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          test -f "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" \
+            verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" \
+            verify --print-certs "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -105,3 +171,4 @@ jobs:
           name: Trouper-Player-APK
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+          retention-days: 14
