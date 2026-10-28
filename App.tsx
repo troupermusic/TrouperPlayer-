@@ -4,8 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import * as DocumentPicker from 'expo-document-picker';
 import * as MediaLibrary from 'expo-media-library/legacy';
-import { useVideoPlayer, VideoView } from "expo-video",
-"@react-native-google-signin/google-signin"
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { getThumbnailAsync } from 'expo-video-thumbnails';
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 import MusicControls from './components/MusicControls';
